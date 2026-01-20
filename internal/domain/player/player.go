@@ -19,7 +19,15 @@ func New(name string) (*Player, error) {
 	}, nil
 }
 
-func (p Player) String() string {
+func (p *Player) ChangeName(newName string) error {
+	if err := validateUsername(newName); err != nil {
+		return err
+	}
+	p.Name = newName
+	return nil
+}
+
+func (p *Player) String() string {
 	return p.Name
 }
 

@@ -9,14 +9,14 @@ type CreateAccountRequest struct {
 }
 
 type CreateAccountResponse struct {
-	AccountID   int                `json:"account_id"`
-	AccountName string             `json:"accountName"`
-	Email       string             `json:"email,omitempty"`
-	CreatedAt   time.Time          `json:"created_at"`
-	User        SimpleUserResponse `json:"user"`
+	AccountID   int                  `json:"account_id"`
+	AccountName string               `json:"accountName"`
+	Email       string               `json:"email,omitempty"`
+	CreatedAt   time.Time            `json:"created_at"`
+	Player      SimplePlayerResponse `json:"player"`
 }
 
-type SimpleUserResponse struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
+type SimplePlayerResponse struct {
+	UserID int    `json:"user_id"`
+	Name   string `json:"player_name"`
 }
