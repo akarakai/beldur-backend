@@ -38,8 +38,17 @@ func (a *AccountRepository) Save(ctx context.Context, acc *account.Account) (*ac
 
 	saved, err := a.scanAccount(row)
 	if err != nil {
+		// IMPORTANT: rely on DB uniqueness constraint; map it to a domain-level repo error
+		// so the usecase can errors.Is() it and return a service error.
+		if errors.Is(err, ErrUniqueValueViolation) {
+			// If you want to distinguish username vs email, do it by parsing the constraint name
+			// in ErrUniqueValueViolation (recommended), and return ErrUsernameAlreadyTaken / ErrEmailAlreadyTaken.
+			// For now, return the generic unique-violation sentinel.
+			return nil, ErrUniqueValueViolation
+		}
 		return nil, err
 	}
+
 	// INSERT ... RETURNING should always return a row
 	if saved == nil {
 		return nil, errors.New("insert account returned no row")
@@ -87,6 +96,8 @@ func (a *AccountRepository) scanAccount(row pgx.Row) (*account.Account, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+		// If your QuerierProvider / pg error mapper already converts pg unique errors
+		// into ErrUniqueValueViolation, this will bubble up to Save() and be mapped.
 		return nil, err
 	}
 

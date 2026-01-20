@@ -48,6 +48,14 @@ func New(username string, hashedPassword string, opt ...AccountOpt) (*Account, e
 	return acc, nil
 }
 
+func (a *Account) ChangeUsername(newUsername string) error {
+	if err := validateUsername(newUsername); err != nil {
+		return err
+	}
+	a.Username = newUsername
+	return nil
+}
+
 // TODO better validation
 func validateUsername(value string) error {
 	if len(value) > UsernameMaxCharacters {
