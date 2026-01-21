@@ -1,52 +1,84 @@
 package main
 
 import (
-	"beldur/internal/db/postgres"
-	"beldur/internal/domain/account"
-	"beldur/internal/domain/player"
-	"beldur/internal/usecase"
+	"beldur/internal/account"
+	"beldur/internal/auth"
+	"beldur/internal/auth/jwt"
+	"beldur/internal/player"
+	"beldur/pkg/db/postgres"
 	"context"
-	"log/slog"
+	"os"
+	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/healthcheck"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	if err := godotenv.Load(".env.dev"); err != nil {
-		panic(err.Error())
+		panic(err)
 	}
+	app := fiber.New()
+	app.Use(healthcheck.New())
+	app.Use(logger.New())
 
+	accountHandler := buildAccountHandler()
+
+	app.Post("/auth/signup", accountHandler.Register)
+	app.Post("/auth/login", accountHandler.Login)
+
+	app.Get("/auth", auth.Middleware(jwtService()), func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	app.Get("/noauth", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	if err := app.Listen(":3000"); err != nil {
+		panic(err)
+	}
+}
+
+func buildAccountHandler() *account.HttpHandler {
 	cfg, err := postgres.ConfigFromEnv()
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
-	pool, err := postgres.NewPgxPool(context.Background(), cfg)
+	pgxPool, err := postgres.NewPgxPool(context.Background(), cfg)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
-	defer pool.Close()
+	transactor, querier := postgres.NewTransactor(pgxPool)
 
-	t, qp := postgres.NewTransactor(pool)
+	accountRepo := account.NewAccountRepository(querier)
+	playerRepo := player.NewPlayerRepository(querier)
 
-	accountRepo := postgres.NewAccountRepository(qp)
-	playerRepo := postgres.NewPlayerRepository(qp)
+	jwtService := jwtService()
 
-	accountSvc := account.NewService(accountRepo)
-	playerSvc := player.NewService(playerRepo)
+	registerUC := account.NewAccountRegistration(
+		transactor,
+		accountRepo,
+		player.NewUniquePlayerService(playerRepo),
+		jwtService,
+	)
 
-	useCase := usecase.NewRegisterAccount(t, accountSvc, playerSvc)
+	loginUC := account.NewUsernamePasswordLogin(
+		accountRepo,
+		jwtService,
+	)
 
-	req := usecase.CreateAccountRequest{
-		Username: "user1234",
-		Password: "pass1234",
-		Email:    "spatagarru.laspezia2@gmail.com",
-	}
+	return account.NewHttpHandler(registerUC, loginUC)
 
-	_, err = useCase.Execute(context.Background(), req)
-	if err != nil {
-		panic(err.Error())
-	}
-	slog.Info("All success")
+}
+
+func jwtService() *jwt.Service {
+	secret := []byte(os.Getenv("JWT_SECRET"))
+	expiration, _ := time.ParseDuration(os.Getenv("JWT_EXPIRATION"))
+	issuer := os.Getenv("JWT_ISSUER")
+	return jwt.NewService(secret, expiration, issuer)
 }

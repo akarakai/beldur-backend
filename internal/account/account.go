@@ -1,7 +1,6 @@
 package account
 
 import (
-	"beldur/internal/domain/account/email"
 	"time"
 )
 
@@ -14,7 +13,7 @@ type AccountOpt func(*Account) error
 
 func WithEmail(emailValue string) AccountOpt {
 	return func(a *Account) error {
-		e, err := email.New(emailValue)
+		e, err := NewEmail(emailValue)
 		if err != nil {
 			return err
 		}
@@ -27,7 +26,7 @@ type Account struct {
 	Id        int
 	Username  string
 	Password  string // hashed password
-	Email     email.Email
+	Email     Email
 	CreatedAt time.Time
 }
 
