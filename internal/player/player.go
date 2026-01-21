@@ -31,7 +31,6 @@ func (p *Player) String() string {
 	return p.Name
 }
 
-// TODO better validation, remove also duplication ?
 func validateUsername(value string) error {
 	if len(value) > UsernameMaxCharacters {
 		return ErrInvalidPlayerName

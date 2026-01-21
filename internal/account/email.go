@@ -1,4 +1,4 @@
-package email
+package account
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ type Email struct {
 	value string
 }
 
-func New(email string) (Email, error) {
+func NewEmail(email string) (Email, error) {
 	email = strings.TrimSpace(email)
 
 	_, err := mail.ParseAddress(email)

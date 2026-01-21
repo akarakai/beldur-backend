@@ -1,25 +1,42 @@
-package postgres
+package account
 
 import (
+	postgres2 "beldur/pkg/db/postgres"
 	"context"
 	"errors"
 	"time"
 
-	"beldur/internal/domain/account"
-	emailpkg "beldur/internal/domain/account/email"
-
 	"github.com/jackc/pgx/v5"
 )
 
-type AccountRepository struct {
-	q QuerierProvider
+type PostgresRepository struct {
+	q postgres2.QuerierProvider
 }
 
-func NewAccountRepository(q QuerierProvider) *AccountRepository {
-	return &AccountRepository{q: q}
+func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId int) error {
+	query := `
+		UPDATE accounts
+		SET last_access = NOW()
+		WHERE account_id = $1;
+	`
+
+	cmdTag, err := a.q(ctx).Exec(ctx, query, accountId)
+	if err != nil {
+		return err
+	}
+
+	if cmdTag.RowsAffected() == 0 {
+		return postgres2.ErrNoRowUpdated
+	}
+
+	return nil
 }
 
-func (a *AccountRepository) Save(ctx context.Context, acc *account.Account) (*account.Account, error) {
+func NewAccountRepository(q postgres2.QuerierProvider) *PostgresRepository {
+	return &PostgresRepository{q: q}
+}
+
+func (a *PostgresRepository) Save(ctx context.Context, acc *Account) (*Account, error) {
 	query := `
 		INSERT INTO accounts (username, password, email)
 		VALUES ($1, $2, $3)
@@ -40,11 +57,11 @@ func (a *AccountRepository) Save(ctx context.Context, acc *account.Account) (*ac
 	if err != nil {
 		// IMPORTANT: rely on DB uniqueness constraint; map it to a domain-level repo error
 		// so the usecase can errors.Is() it and return a service error.
-		if errors.Is(err, ErrUniqueValueViolation) {
+		if errors.Is(err, postgres2.ErrUniqueValueViolation) {
 			// If you want to distinguish username vs email, do it by parsing the constraint name
 			// in ErrUniqueValueViolation (recommended), and return ErrUsernameAlreadyTaken / ErrEmailAlreadyTaken.
 			// For now, return the generic unique-violation sentinel.
-			return nil, ErrUniqueValueViolation
+			return nil, postgres2.ErrUniqueValueViolation
 		}
 		return nil, err
 	}
@@ -56,7 +73,7 @@ func (a *AccountRepository) Save(ctx context.Context, acc *account.Account) (*ac
 	return saved, nil
 }
 
-func (a *AccountRepository) FindByUsername(ctx context.Context, username string) (*account.Account, error) {
+func (a *PostgresRepository) FindByUsername(ctx context.Context, username string) (*Account, error) {
 	query := `
 		SELECT account_id, username, password, email, created_at
 		FROM accounts
@@ -68,7 +85,7 @@ func (a *AccountRepository) FindByUsername(ctx context.Context, username string)
 	return a.scanAccount(row)
 }
 
-func (a *AccountRepository) FindById(ctx context.Context, accountId int) (*account.Account, error) {
+func (a *PostgresRepository) FindById(ctx context.Context, accountId int) (*Account, error) {
 	query := `
 		SELECT account_id, username, password, email, created_at
 		FROM accounts
@@ -82,7 +99,7 @@ func (a *AccountRepository) FindById(ctx context.Context, accountId int) (*accou
 
 // scanAccount translates DB row -> domain model.
 // Returns (nil, nil) when no row is found.
-func (a *AccountRepository) scanAccount(row pgx.Row) (*account.Account, error) {
+func (a *PostgresRepository) scanAccount(row pgx.Row) (*Account, error) {
 	var (
 		id        int
 		username  string
@@ -101,13 +118,13 @@ func (a *AccountRepository) scanAccount(row pgx.Row) (*account.Account, error) {
 		return nil, err
 	}
 
-	var accEmail emailpkg.Email
+	var accEmail Email
 	if em != nil {
 		// Already validated when stored; ignore error defensively
-		accEmail, _ = emailpkg.New(*em)
+		accEmail, _ = NewEmail(*em)
 	}
 
-	return &account.Account{
+	return &Account{
 		Id:        id,
 		Username:  username,
 		Password:  password,

@@ -1,24 +1,23 @@
-package postgres
+package player
 
 import (
+	postgres2 "beldur/pkg/db/postgres"
 	"context"
 	"errors"
-
-	"beldur/internal/domain/player"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type PlayerRepository struct {
-	q QuerierProvider
+type PostgresPlayerRepository struct {
+	q postgres2.QuerierProvider
 }
 
-func NewPlayerRepository(q QuerierProvider) *PlayerRepository {
-	return &PlayerRepository{q: q}
+func NewPlayerRepository(q postgres2.QuerierProvider) *PostgresPlayerRepository {
+	return &PostgresPlayerRepository{q: q}
 }
 
-func (p *PlayerRepository) Save(ctx context.Context, pl *player.Player, accountId int) (*player.Player, error) {
+func (p *PostgresPlayerRepository) Save(ctx context.Context, pl *Player, accountId int) (*Player, error) {
 	query := `
 		INSERT INTO players (player_name, account_id)
 		VALUES ($1, $2)
@@ -31,7 +30,7 @@ func (p *PlayerRepository) Save(ctx context.Context, pl *player.Player, accountI
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil, ErrUniqueValueViolation
+			return nil, postgres2.ErrUniqueValueViolation
 		}
 		return nil, err
 	}
@@ -42,7 +41,7 @@ func (p *PlayerRepository) Save(ctx context.Context, pl *player.Player, accountI
 	return saved, nil
 }
 
-func (p *PlayerRepository) FindByUsername(ctx context.Context, username string) (*player.Player, error) {
+func (p *PostgresPlayerRepository) FindByUsername(ctx context.Context, username string) (*Player, error) {
 	query := `
 		SELECT player_id, player_name
 		FROM players
@@ -54,7 +53,7 @@ func (p *PlayerRepository) FindByUsername(ctx context.Context, username string) 
 	return p.scanPlayer(row)
 }
 
-func (p *PlayerRepository) FindById(ctx context.Context, playerId int) (*player.Player, error) {
+func (p *PostgresPlayerRepository) FindById(ctx context.Context, playerId int) (*Player, error) {
 	query := `
 		SELECT player_id, player_name
 		FROM players
@@ -68,7 +67,7 @@ func (p *PlayerRepository) FindById(ctx context.Context, playerId int) (*player.
 
 // scanPlayer translates DB row -> domain model.
 // Returns (nil, nil) when no row is found.
-func (p *PlayerRepository) scanPlayer(row pgx.Row) (*player.Player, error) {
+func (p *PostgresPlayerRepository) scanPlayer(row pgx.Row) (*Player, error) {
 	var (
 		id   int
 		name string
@@ -82,7 +81,7 @@ func (p *PlayerRepository) scanPlayer(row pgx.Row) (*player.Player, error) {
 		return nil, err
 	}
 
-	pl, err := player.New(name)
+	pl, err := New(name)
 	if err != nil {
 		return nil, err
 	}
