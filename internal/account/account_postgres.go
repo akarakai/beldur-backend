@@ -1,7 +1,7 @@
 package account
 
 import (
-	postgres2 "beldur/pkg/db/postgres"
+	"beldur/pkg/db/postgres"
 	"context"
 	"errors"
 	"time"
@@ -10,7 +10,7 @@ import (
 )
 
 type PostgresRepository struct {
-	q postgres2.QuerierProvider
+	q postgres.QuerierProvider
 }
 
 func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId int) error {
@@ -26,13 +26,13 @@ func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId int
 	}
 
 	if cmdTag.RowsAffected() == 0 {
-		return postgres2.ErrNoRowUpdated
+		return postgres.ErrNoRowUpdated
 	}
 
 	return nil
 }
 
-func NewAccountRepository(q postgres2.QuerierProvider) *PostgresRepository {
+func NewPostgresRepository(q postgres.QuerierProvider) *PostgresRepository {
 	return &PostgresRepository{q: q}
 }
 
@@ -57,11 +57,11 @@ func (a *PostgresRepository) Save(ctx context.Context, acc *Account) (*Account, 
 	if err != nil {
 		// IMPORTANT: rely on DB uniqueness constraint; map it to a domain-level repo error
 		// so the usecase can errors.Is() it and return a service error.
-		if errors.Is(err, postgres2.ErrUniqueValueViolation) {
+		if errors.Is(err, postgres.ErrUniqueValueViolation) {
 			// If you want to distinguish username vs email, do it by parsing the constraint name
 			// in ErrUniqueValueViolation (recommended), and return ErrUsernameAlreadyTaken / ErrEmailAlreadyTaken.
 			// For now, return the generic unique-violation sentinel.
-			return nil, postgres2.ErrUniqueValueViolation
+			return nil, postgres.ErrUniqueValueViolation
 		}
 		return nil, err
 	}

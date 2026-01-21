@@ -1,7 +1,7 @@
 package player
 
 import (
-	postgres2 "beldur/pkg/db/postgres"
+	"beldur/pkg/db/postgres"
 	"context"
 	"errors"
 
@@ -9,15 +9,15 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type PostgresPlayerRepository struct {
-	q postgres2.QuerierProvider
+type PostgresRepository struct {
+	q postgres.QuerierProvider
 }
 
-func NewPlayerRepository(q postgres2.QuerierProvider) *PostgresPlayerRepository {
-	return &PostgresPlayerRepository{q: q}
+func NewPostgresRepository(q postgres.QuerierProvider) *PostgresRepository {
+	return &PostgresRepository{q: q}
 }
 
-func (p *PostgresPlayerRepository) Save(ctx context.Context, pl *Player, accountId int) (*Player, error) {
+func (p *PostgresRepository) Save(ctx context.Context, pl *Player, accountId int) (*Player, error) {
 	query := `
 		INSERT INTO players (player_name, account_id)
 		VALUES ($1, $2)
@@ -30,7 +30,7 @@ func (p *PostgresPlayerRepository) Save(ctx context.Context, pl *Player, account
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil, postgres2.ErrUniqueValueViolation
+			return nil, postgres.ErrUniqueValueViolation
 		}
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (p *PostgresPlayerRepository) Save(ctx context.Context, pl *Player, account
 	return saved, nil
 }
 
-func (p *PostgresPlayerRepository) FindByUsername(ctx context.Context, username string) (*Player, error) {
+func (p *PostgresRepository) FindByUsername(ctx context.Context, username string) (*Player, error) {
 	query := `
 		SELECT player_id, player_name
 		FROM players
@@ -53,7 +53,7 @@ func (p *PostgresPlayerRepository) FindByUsername(ctx context.Context, username 
 	return p.scanPlayer(row)
 }
 
-func (p *PostgresPlayerRepository) FindById(ctx context.Context, playerId int) (*Player, error) {
+func (p *PostgresRepository) FindById(ctx context.Context, playerId int) (*Player, error) {
 	query := `
 		SELECT player_id, player_name
 		FROM players
@@ -67,7 +67,7 @@ func (p *PostgresPlayerRepository) FindById(ctx context.Context, playerId int) (
 
 // scanPlayer translates DB row -> domain model.
 // Returns (nil, nil) when no row is found.
-func (p *PostgresPlayerRepository) scanPlayer(row pgx.Row) (*Player, error) {
+func (p *PostgresRepository) scanPlayer(row pgx.Row) (*Player, error) {
 	var (
 		id   int
 		name string

@@ -4,8 +4,8 @@ import (
 	"beldur/internal/account"
 	"beldur/internal/auth"
 	"beldur/internal/auth/jwt"
-	"beldur/internal/player"
 	"beldur/pkg/db/postgres"
+	"beldur/pkg/db/tx"
 	"context"
 	"os"
 	"time"
@@ -20,16 +20,24 @@ func main() {
 	if err := godotenv.Load(".env.dev"); err != nil {
 		panic(err)
 	}
+
+	jwtService := buildJwtService()
+	transactor, qProvider := buildTransactorQuerierProvider()
+
+	accountHandler := account.NewHandlerFromDeps(account.Deps{
+		Transactor: transactor,
+		QProvider:  qProvider,
+		Issuer:     jwtService,
+	})
+
 	app := fiber.New()
 	app.Use(healthcheck.New())
 	app.Use(logger.New())
 
-	accountHandler := buildAccountHandler()
-
 	app.Post("/auth/signup", accountHandler.Register)
 	app.Post("/auth/login", accountHandler.Login)
 
-	app.Get("/auth", auth.Middleware(jwtService()), func(c *fiber.Ctx) error {
+	app.Get("/auth", auth.Middleware(jwtService), func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
@@ -42,7 +50,14 @@ func main() {
 	}
 }
 
-func buildAccountHandler() *account.HttpHandler {
+func buildJwtService() *jwt.Service {
+	secret := []byte(os.Getenv("JWT_SECRET"))
+	expiration, _ := time.ParseDuration(os.Getenv("JWT_EXPIRATION"))
+	issuer := os.Getenv("JWT_ISSUER")
+	return jwt.NewService(secret, expiration, issuer)
+}
+
+func buildTransactorQuerierProvider() (tx.Transactor, postgres.QuerierProvider) {
 	cfg, err := postgres.ConfigFromEnv()
 	if err != nil {
 		panic(err)
@@ -53,32 +68,5 @@ func buildAccountHandler() *account.HttpHandler {
 		panic(err)
 	}
 
-	transactor, querier := postgres.NewTransactor(pgxPool)
-
-	accountRepo := account.NewAccountRepository(querier)
-	playerRepo := player.NewPlayerRepository(querier)
-
-	jwtService := jwtService()
-
-	registerUC := account.NewAccountRegistration(
-		transactor,
-		accountRepo,
-		player.NewUniquePlayerService(playerRepo),
-		jwtService,
-	)
-
-	loginUC := account.NewUsernamePasswordLogin(
-		accountRepo,
-		jwtService,
-	)
-
-	return account.NewHttpHandler(registerUC, loginUC)
-
-}
-
-func jwtService() *jwt.Service {
-	secret := []byte(os.Getenv("JWT_SECRET"))
-	expiration, _ := time.ParseDuration(os.Getenv("JWT_EXPIRATION"))
-	issuer := os.Getenv("JWT_ISSUER")
-	return jwt.NewService(secret, expiration, issuer)
+	return postgres.NewTransactor(pgxPool)
 }
