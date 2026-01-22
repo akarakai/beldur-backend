@@ -32,7 +32,8 @@ func main() {
 	})
 
 	campaignHandler := campaign.NewHandlerFromDeps(campaign.Deps{
-		QProvider: qProvider,
+		QProvider:  qProvider,
+		Transactor: transactor,
 	})
 
 	app := fiber.New()

@@ -20,9 +20,9 @@ func NewPostgresRepository(q postgres.QuerierProvider) *PostgresRepository {
 
 func (p *PostgresRepository) Save(ctx context.Context, pl *Player, accountId ids.AccountId) (*Player, error) {
 	query := `
-		INSERT INTO players (player_name, account_id)
+		INSERT INTO players (name, account_id)
 		VALUES ($1, $2)
-		RETURNING player_id, player_name
+		RETURNING player_id, name
 	`
 
 	row := p.q(ctx).QueryRow(ctx, query, pl.Name, accountId)
@@ -44,9 +44,9 @@ func (p *PostgresRepository) Save(ctx context.Context, pl *Player, accountId ids
 
 func (p *PostgresRepository) FindByUsername(ctx context.Context, username string) (*Player, error) {
 	query := `
-		SELECT player_id, player_name
+		SELECT player_id, name
 		FROM players
-		WHERE player_name = $1
+		WHERE name = $1
 		LIMIT 1
 	`
 
@@ -56,7 +56,7 @@ func (p *PostgresRepository) FindByUsername(ctx context.Context, username string
 
 func (p *PostgresRepository) FindById(ctx context.Context, playerId ids.PlayerId) (*Player, error) {
 	query := `
-		SELECT player_id, player_name
+		SELECT player_id, name
 		FROM players
 		WHERE player_id = $1
 		LIMIT 1
@@ -68,7 +68,7 @@ func (p *PostgresRepository) FindById(ctx context.Context, playerId ids.PlayerId
 
 func (p *PostgresRepository) FindByAccountId(ctx context.Context, accountId ids.AccountId) (*Player, error) {
 	sql := `
-		SELECT player_id, player_name
+		SELECT player_id, name
 		FROM players p
 		INNER JOIN accounts a ON p.account_id = a.account_id
 		WHERE a.account_id = $1

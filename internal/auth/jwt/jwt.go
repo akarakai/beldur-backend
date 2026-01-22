@@ -1,13 +1,15 @@
 package jwt
 
 import (
-	"beldur/internal/auth"
-	"beldur/internal/id"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
+
+	"beldur/internal/auth"
+	"beldur/internal/id"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 )
@@ -25,6 +27,16 @@ type Service struct {
 }
 
 func NewService(secret []byte, expiration time.Duration, issuer string) *Service {
+	if secret == nil {
+		panic("secret is nil")
+	}
+	if expiration == 0 {
+		panic("expiration is zero")
+	}
+	if issuer == "" {
+		panic("issuer is empty")
+	}
+
 	return &Service{
 		secret:     secret,
 		expiration: expiration,
@@ -37,8 +49,8 @@ func (s *Service) Issue(ctx context.Context, c auth.Claims) (string, error) {
 
 	claims := jwtlib.MapClaims{
 		"iss": s.issuer,
-		"sub": c.Subject,
-		"aid": c.PlayerID,
+		"sub": strconv.Itoa(int(c.Subject)),
+		"aid": int(c.PlayerID),
 		"iat": jwtlib.NewNumericDate(now),
 		"exp": jwtlib.NewNumericDate(now.Add(s.expiration)),
 	}
@@ -86,16 +98,20 @@ func (s *Service) Verify(ctx context.Context, tokenStr string) (auth.Verified, e
 		return auth.Verified{}, errors.Join(ErrInvalidToken, err)
 	}
 
-	// MapClaims stores JSON numbers as float64
 	var playerId id.PlayerId
 	if v, ok := claims["aid"]; ok {
 		switch n := v.(type) {
 		case float64:
-			playerId = id.PlayerId(n)
+			playerId = id.PlayerId(int(n))
 		case int:
 			playerId = id.PlayerId(n)
 		case int64:
-			playerId = id.PlayerId(n)
+			playerId = id.PlayerId(int(n))
+		case json.Number:
+			i, err := n.Int64()
+			if err == nil {
+				playerId = id.PlayerId(int(i))
+			}
 		}
 	}
 

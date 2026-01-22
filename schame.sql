@@ -45,7 +45,7 @@ CREATE TABLE campaigns (
 CREATE TABLE campaigns_players (
     campaign_id  INTEGER NOT NULL,
     player_id    INTEGER NOT NULL,
-    joined_at    TIMESTAMP NOT NULL,
+    joined_at    TIMESTAMP DEFAULT NOW(),
     is_master    BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT pk_campaigns_players
