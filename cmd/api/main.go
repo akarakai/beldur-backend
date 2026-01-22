@@ -2,7 +2,9 @@ package main
 
 import (
 	"beldur/internal/account"
+	"beldur/internal/auth"
 	"beldur/internal/auth/jwt"
+	"beldur/internal/campaign"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
 	"context"
@@ -29,12 +31,19 @@ func main() {
 		Issuer:     jwtService,
 	})
 
+	campaignHandler := campaign.NewHandlerFromDeps(campaign.Deps{
+		QProvider: qProvider,
+	})
+
 	app := fiber.New()
 	app.Use(healthcheck.New())
 	app.Use(logger.New())
 
+	authMiddleware := auth.HttpMiddleware(jwtService)
+
 	app.Post("/auth/signup", accountHandler.Register)
 	app.Post("/auth/login", accountHandler.Login)
+	app.Post("/campaign", authMiddleware, campaignHandler.HandleCreateCampaign)
 
 	if err := app.Listen(":3000"); err != nil {
 		panic(err)

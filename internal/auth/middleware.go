@@ -6,7 +6,7 @@ import (
 
 const principalKey = "principal"
 
-func Middleware(verifier TokenVerifier) func(*fiber.Ctx) error {
+func HttpMiddleware(verifier TokenVerifier) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		token := c.Cookies("jwt")
 		if token == "" {
