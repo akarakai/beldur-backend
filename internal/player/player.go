@@ -1,11 +1,13 @@
 package player
 
+import "beldur/internal/id"
+
 const (
 	UsernameMaxCharacters = 20
 )
 
 type Player struct {
-	Id   int
+	Id   id.PlayerId
 	Name string
 }
 

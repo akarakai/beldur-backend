@@ -1,6 +1,7 @@
 package account
 
 import (
+	id2 "beldur/internal/id"
 	"beldur/pkg/db/postgres"
 	"context"
 	"errors"
@@ -13,7 +14,7 @@ type PostgresRepository struct {
 	q postgres.QuerierProvider
 }
 
-func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId int) error {
+func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId id2.AccountId) error {
 	query := `
 		UPDATE accounts
 		SET last_access = NOW()
@@ -85,7 +86,7 @@ func (a *PostgresRepository) FindByUsername(ctx context.Context, username string
 	return a.scanAccount(row)
 }
 
-func (a *PostgresRepository) FindById(ctx context.Context, accountId int) (*Account, error) {
+func (a *PostgresRepository) FindById(ctx context.Context, accountId id2.AccountId) (*Account, error) {
 	query := `
 		SELECT account_id, username, password, email, created_at
 		FROM accounts
@@ -125,7 +126,7 @@ func (a *PostgresRepository) scanAccount(row pgx.Row) (*Account, error) {
 	}
 
 	return &Account{
-		Id:        id,
+		Id:        id2.AccountId(id),
 		Username:  username,
 		Password:  password,
 		Email:     accEmail,

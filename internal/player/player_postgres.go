@@ -1,6 +1,7 @@
 package player
 
 import (
+	ids "beldur/internal/id"
 	"beldur/pkg/db/postgres"
 	"context"
 	"errors"
@@ -17,7 +18,7 @@ func NewPostgresRepository(q postgres.QuerierProvider) *PostgresRepository {
 	return &PostgresRepository{q: q}
 }
 
-func (p *PostgresRepository) Save(ctx context.Context, pl *Player, accountId int) (*Player, error) {
+func (p *PostgresRepository) Save(ctx context.Context, pl *Player, accountId ids.AccountId) (*Player, error) {
 	query := `
 		INSERT INTO players (player_name, account_id)
 		VALUES ($1, $2)
@@ -53,7 +54,7 @@ func (p *PostgresRepository) FindByUsername(ctx context.Context, username string
 	return p.scanPlayer(row)
 }
 
-func (p *PostgresRepository) FindById(ctx context.Context, playerId int) (*Player, error) {
+func (p *PostgresRepository) FindById(ctx context.Context, playerId ids.PlayerId) (*Player, error) {
 	query := `
 		SELECT player_id, player_name
 		FROM players
@@ -62,6 +63,17 @@ func (p *PostgresRepository) FindById(ctx context.Context, playerId int) (*Playe
 	`
 
 	row := p.q(ctx).QueryRow(ctx, query, playerId)
+	return p.scanPlayer(row)
+}
+
+func (p *PostgresRepository) FindByAccountId(ctx context.Context, accountId ids.AccountId) (*Player, error) {
+	sql := `
+		SELECT player_id, player_name
+		FROM players p
+		INNER JOIN accounts a ON p.account_id = a.account_id
+		WHERE a.account_id = $1
+	`
+	row := p.q(ctx).QueryRow(ctx, sql, accountId)
 	return p.scanPlayer(row)
 }
 
@@ -85,6 +97,6 @@ func (p *PostgresRepository) scanPlayer(row pgx.Row) (*Player, error) {
 	if err != nil {
 		return nil, err
 	}
-	pl.Id = id
+	pl.Id = ids.PlayerId(id)
 	return pl, nil
 }

@@ -1,20 +1,23 @@
 package auth
 
-import "context"
+import (
+	"beldur/internal/id"
+	"context"
+)
 
 type Claims struct {
-	Subject   string
-	AccountID int
+	Subject  id.AccountId
+	PlayerID id.PlayerId
 }
 
 type Principal struct {
-	AccountName string
-	AccountID   int
+	AccountID id.AccountId
+	PlayerID  id.PlayerId
 }
 
 type Verified struct {
-	Subject   string
-	AccountID int
+	Subject  id.AccountId
+	PlayerId id.PlayerId
 }
 
 type TokenIssuer interface {

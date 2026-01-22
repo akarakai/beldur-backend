@@ -1,6 +1,7 @@
 package player
 
 import (
+	"beldur/internal/id"
 	"beldur/pkg/db/postgres"
 	"context"
 	"errors"
@@ -20,7 +21,7 @@ func NewUniquePlayerService(playerRepo Repository) *UniquePlayerService {
 
 // CreateUniquePlayer attempts to persist a player.
 // If the name is already taken (unique violation), it generates a new name and retries.
-func (s *UniquePlayerService) CreateUniquePlayer(ctx context.Context, pl *Player, accountId int) (*Player, error) {
+func (s *UniquePlayerService) CreateUniquePlayer(ctx context.Context, pl *Player, accountId id.AccountId) (*Player, error) {
 	const maxTrials = 3
 
 	originalName := pl.Name

@@ -2,7 +2,6 @@ package main
 
 import (
 	"beldur/internal/account"
-	"beldur/internal/auth"
 	"beldur/internal/auth/jwt"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
@@ -36,14 +35,6 @@ func main() {
 
 	app.Post("/auth/signup", accountHandler.Register)
 	app.Post("/auth/login", accountHandler.Login)
-
-	app.Get("/auth", auth.Middleware(jwtService), func(c *fiber.Ctx) error {
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	app.Get("/noauth", func(c *fiber.Ctx) error {
-		return c.SendStatus(fiber.StatusOK)
-	})
 
 	if err := app.Listen(":3000"); err != nil {
 		panic(err)

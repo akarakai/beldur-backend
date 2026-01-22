@@ -1,6 +1,7 @@
 package account
 
 import (
+	"beldur/internal/id"
 	"time"
 )
 
@@ -9,9 +10,9 @@ const (
 	PasswordMaxCharacters = 10
 )
 
-type AccountOpt func(*Account) error
+type Option func(*Account) error
 
-func WithEmail(emailValue string) AccountOpt {
+func WithEmail(emailValue string) Option {
 	return func(a *Account) error {
 		e, err := NewEmail(emailValue)
 		if err != nil {
@@ -23,14 +24,14 @@ func WithEmail(emailValue string) AccountOpt {
 }
 
 type Account struct {
-	Id        int
+	Id        id.AccountId
 	Username  string
 	Password  string // hashed password
 	Email     Email
 	CreatedAt time.Time
 }
 
-func New(username string, hashedPassword string, opt ...AccountOpt) (*Account, error) {
+func New(username string, hashedPassword string, opt ...Option) (*Account, error) {
 	if err := validateUsername(username); err != nil {
 		return nil, err
 	}

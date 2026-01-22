@@ -21,6 +21,7 @@ type Registration struct {
 // UsernamePasswordLogin is a login USE CASE
 type UsernamePasswordLogin struct {
 	accountRepo Repository
+	playerRepo  player.Repository
 	tokenIssuer auth.TokenIssuer
 }
 
@@ -36,9 +37,10 @@ func NewAccountRegistration(tx tx.Transactor, accountRepo Repository,
 	}
 }
 
-func NewUsernamePasswordLogin(accountRepo Repository, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
+func NewUsernamePasswordLogin(accountRepo Repository, playerRepo player.Repository, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
 	return &UsernamePasswordLogin{
 		accountRepo: accountRepo,
+		playerRepo:  playerRepo,
 		tokenIssuer: tokenIssuer,
 	}
 }
@@ -86,8 +88,8 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 
 	// generate token
 	token, err := a.tokenIssuer.Issue(ctx, auth.Claims{
-		Subject:   newAcc.Username,
-		AccountID: newAcc.Id,
+		Subject:  newAcc.Id,
+		PlayerID: newPl.Id,
 	})
 	if err != nil {
 		slog.Error("failed to issue token", "username", newAcc.Username, "error", err)
@@ -95,12 +97,12 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 	}
 
 	return CreateAccountResponse{
-		AccountID:   newAcc.Id,
+		AccountID:   int(newAcc.Id),
 		AccountName: newAcc.Username,
 		Email:       newAcc.Email.String(),
 		CreatedAt:   newAcc.CreatedAt,
 		Player: PlayerCreateResponse{
-			PlayerID: newPl.Id,
+			PlayerID: int(newPl.Id),
 			Name:     newPl.Name,
 		},
 	}, token, nil
@@ -155,14 +157,21 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 		return "", ErrInvalidCredentials
 	}
 
+	p, err := l.playerRepo.FindByAccountId(ctx, acc.Id)
+	if err != nil {
+		slog.Info("failed to find player", "account", acc.Id, "error", err)
+		return "", errors.Join(ErrDatabaseError, errors.New("failed to fetch the player even if account is found"))
+	}
+
 	// login is successful, update the last access. This should never give an error
 	if err := l.accountRepo.UpdateLastAccess(ctx, acc.Id); err != nil {
 		slog.Error("failed to update last access", "error", err)
+		return "", ErrDatabaseError
 	}
 
 	token, err := l.tokenIssuer.Issue(ctx, auth.Claims{
-		Subject:   acc.Username,
-		AccountID: acc.Id,
+		Subject:  acc.Id,
+		PlayerID: p.Id,
 	})
 	if err != nil {
 		slog.Error("failed to issue token", "error", err)

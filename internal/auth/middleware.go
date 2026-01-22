@@ -19,8 +19,8 @@ func Middleware(verifier TokenVerifier) func(*fiber.Ctx) error {
 		}
 
 		c.Locals(principalKey, Principal{
-			AccountID:   verified.AccountID,
-			AccountName: verified.Subject,
+			AccountID: verified.Subject,
+			PlayerID:  verified.PlayerId,
 		})
 
 		return c.Next()

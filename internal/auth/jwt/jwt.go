@@ -2,9 +2,11 @@ package jwt
 
 import (
 	"beldur/internal/auth"
+	"beldur/internal/id"
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
@@ -36,7 +38,7 @@ func (s *Service) Issue(ctx context.Context, c auth.Claims) (string, error) {
 	claims := jwtlib.MapClaims{
 		"iss": s.issuer,
 		"sub": c.Subject,
-		"aid": c.AccountID,
+		"aid": c.PlayerID,
 		"iat": jwtlib.NewNumericDate(now),
 		"exp": jwtlib.NewNumericDate(now.Add(s.expiration)),
 	}
@@ -79,21 +81,26 @@ func (s *Service) Verify(ctx context.Context, tokenStr string) (auth.Verified, e
 		return auth.Verified{}, ErrInvalidToken
 	}
 
+	subInt, err := strconv.Atoi(sub)
+	if err != nil {
+		return auth.Verified{}, errors.Join(ErrInvalidToken, err)
+	}
+
 	// MapClaims stores JSON numbers as float64
-	var accountID int
+	var playerId id.PlayerId
 	if v, ok := claims["aid"]; ok {
 		switch n := v.(type) {
 		case float64:
-			accountID = int(n)
+			playerId = id.PlayerId(n)
 		case int:
-			accountID = n
+			playerId = id.PlayerId(n)
 		case int64:
-			accountID = int(n)
+			playerId = id.PlayerId(n)
 		}
 	}
 
 	return auth.Verified{
-		Subject:   sub,
-		AccountID: accountID,
+		Subject:  id.AccountId(subInt),
+		PlayerId: playerId,
 	}, nil
 }
