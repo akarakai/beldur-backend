@@ -86,6 +86,16 @@ func (c *Campaign) Start() error {
 	return nil
 }
 
+func (c *Campaign) CanBeJoined() bool {
+	if c.status == StatusCreated {
+		return true
+	}
+	if len(c.players) < MaxPlayersNumber {
+		return true
+	}
+	return false
+}
+
 func (c *Campaign) Finish() error {
 	if c.status == StatusFinished {
 		return ErrCampaignFinished
