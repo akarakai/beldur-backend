@@ -17,7 +17,7 @@ CREATE TABLE accounts (
 -- Players (1:1 with accounts)
 CREATE TABLE players (
     player_id    SERIAL PRIMARY KEY,
-    name  VARCHAR(20) UNIQUE NOT NULL,
+    name         VARCHAR(20) UNIQUE NOT NULL,
     account_id   INTEGER NOT NULL UNIQUE,
 
     CONSTRAINT fk_players_account
@@ -36,6 +36,7 @@ CREATE TABLE campaigns (
     finished_at   TIMESTAMP,
     status        VARCHAR(30) NOT NULL,
     master_id     INTEGER NOT NULL,
+    access_code   CHAR(6) NOT NULL,
 
     CONSTRAINT fk_campaigns_player_master
         FOREIGN KEY (master_id)

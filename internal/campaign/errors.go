@@ -16,10 +16,25 @@ var (
 	ErrCampaignNotStarted         = errors.New("campaign is still not started")
 	ErrCampaignAlreadyStarted     = errors.New("campaign is already started")
 	ErrNotEnoughPlayersToStart    = errors.New("not enough players to start the campaign")
+
+	ErrCampaignNotFound = errors.New("campaign not found")
+	ErrWrongAccessCode  = errors.New("wrong access code joining campaign")
 )
 
 func NewCampaignApiErrorManager() *httperr.Manager {
 	mng := httperr.NewManager()
+
+	mng.Add(ErrWrongAccessCode, httperr.Mapped{
+		Status:  http.StatusBadRequest, // TODO MAYBE UNAUTHORIZED????
+		Code:    "wrong_access_code",
+		Message: ErrWrongAccessCode.Error(),
+	})
+
+	mng.Add(ErrCampaignNotFound, httperr.Mapped{
+		Status:  http.StatusNotFound,
+		Code:    "campaign_not_found",
+		Message: ErrInvalidCampaignName.Error(),
+	})
 
 	mng.Add(ErrInvalidCampaignName, httperr.Mapped{
 		Status:  http.StatusBadRequest,
