@@ -12,11 +12,13 @@ import (
 // UniquePlayerService is a domain service that makes sure to persist an user in its repository
 // without violating the constriction of unique username
 type UniquePlayerService struct {
-	playerRepo Repository
+	playerSaver Saver
 }
 
-func NewUniquePlayerService(playerRepo Repository) *UniquePlayerService {
-	return &UniquePlayerService{playerRepo: playerRepo}
+func NewUniquePlayerService(playerSaver Saver) *UniquePlayerService {
+	return &UniquePlayerService{
+		playerSaver: playerSaver,
+	}
 }
 
 // CreateUniquePlayer attempts to persist a player.
@@ -27,7 +29,7 @@ func (s *UniquePlayerService) CreateUniquePlayer(ctx context.Context, pl *Player
 	originalName := pl.Name
 
 	for attempt := 0; attempt < maxTrials; attempt++ {
-		savedPl, err := s.playerRepo.Save(ctx, pl, accountId)
+		savedPl, err := s.playerSaver.Save(ctx, pl, accountId)
 		if err == nil {
 			return savedPl, nil
 		}

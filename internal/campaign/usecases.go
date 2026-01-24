@@ -12,14 +12,18 @@ import (
 )
 
 type UseCase struct {
-	campaignRepo Repository
-	tx           tx.Transactor
+	cSaver   Saver
+	cFinder  Finder
+	cUpdater Updater
+	tx       tx.Transactor
 }
 
-func NewUseCase(campaignRepo Repository, tx tx.Transactor) *UseCase {
+func NewUseCase(campaignSaver Saver, campaignFinder Finder, campaignUpdater Updater, tx tx.Transactor) *UseCase {
 	return &UseCase{
-		campaignRepo: campaignRepo,
-		tx:           tx,
+		cSaver:   campaignSaver,
+		cFinder:  campaignFinder,
+		cUpdater: campaignUpdater,
+		tx:       tx,
 	}
 }
 
@@ -38,7 +42,7 @@ func (uc *UseCase) CreateNewCampaign(ctx context.Context, req CreationRequest, m
 	code := generateAccessCode()
 
 	err = uc.tx.WithTransaction(ctx, func(ctx context.Context) error {
-		if err := uc.campaignRepo.Save(ctx, c, code); err != nil {
+		if err := uc.cSaver.Save(ctx, c, code); err != nil {
 			slog.Error("failed to save new campaign", "error", err)
 			return err
 		}
@@ -70,13 +74,13 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 	authCode = strings.ToUpper(authCode)
 
 	err := uc.tx.WithTransaction(ctx, func(ctx context.Context) error {
-		c, err := uc.campaignRepo.FindById(ctx, campaignId)
+		c, err := uc.cFinder.FindById(ctx, campaignId)
 		if err != nil {
 			slog.Info("no campaign found", "campaign_id", campaignId)
 			return ErrCampaignNotFound
 		}
 		// check if authcode is the same
-		codeDb, err := uc.campaignRepo.FindAuthCode(ctx, c.id)
+		codeDb, err := uc.cFinder.FindAuthCode(ctx, c.id)
 		if err != nil {
 			slog.Error("failed to find auth code", "campaign_id", c.id, "error", err)
 			return err
@@ -87,7 +91,7 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 		if err := c.AddPlayer(playerId); err != nil {
 			return err
 		}
-		if err := uc.campaignRepo.Update(ctx, c); err != nil {
+		if err := uc.cUpdater.Update(ctx, c); err != nil {
 			slog.Error("failed to update campaign", "error", err)
 			return err
 		}
@@ -109,7 +113,7 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 // SearchCampaign gives back a list of campaigns, filtering is now not present
 // Only the full list of the campaign in the database is given
 func (uc *UseCase) SearchCampaign(ctx context.Context) (dto.ListResponse[SimpleCampaignInfoResponse], error) {
-	campaigns, err := uc.campaignRepo.FindAll(ctx)
+	campaigns, err := uc.cFinder.FindAll(ctx)
 	if err != nil {
 		log.Error("failed to find campaigns from the database", "error", err)
 		return dto.ListResponse[SimpleCampaignInfoResponse]{}, err

@@ -19,8 +19,8 @@ func NewHandlerFromDeps(deps Deps) *HttpHandler {
 	uniquePlayerSvc := player.NewUniquePlayerService(playerRepo)
 
 	registerUC := NewAccountRegistration(deps.Transactor, accountRepo, uniquePlayerSvc, deps.Issuer)
-	loginUC := NewUsernamePasswordLogin(accountRepo, playerRepo, deps.Issuer)
-	manageUC := NewAccountManagement(accountRepo)
+	loginUC := NewUsernamePasswordLogin(accountRepo, accountRepo, playerRepo, deps.Issuer)
+	manageUC := NewAccountManagement(accountRepo, accountRepo)
 
 	return NewHttpHandler(registerUC, loginUC, manageUC)
 }
