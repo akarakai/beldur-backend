@@ -13,7 +13,7 @@ import (
 
 // Registration is an USE CASE where an account is created along with a player of that account
 type Registration struct {
-	accountRepo     Repository
+	accSaver        Saver
 	uniquePlayerSvc *player.UniquePlayerService
 	tx              tx.Transactor
 	tokenIssuer     auth.TokenIssuer
@@ -21,24 +21,27 @@ type Registration struct {
 
 // UsernamePasswordLogin is a login USE CASE
 type UsernamePasswordLogin struct {
-	accountRepo Repository
+	accFinder   Finder
+	accUpdater  Updater
 	playerRepo  player.Repository
 	tokenIssuer auth.TokenIssuer
 }
 
 type Management struct {
-	accountRepo Repository
+	accFinder  Finder
+	accUpdater Updater
 }
 
-func NewAccountManagement(accountRepo Repository) *Management {
+func NewAccountManagement(accFinder Finder, accUpdater Updater) *Management {
 	return &Management{
-		accountRepo: accountRepo,
+		accFinder:  accFinder,
+		accUpdater: accUpdater,
 	}
 }
 
 // UpdateAccount updates the account of accountId
 func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountRequest, accountId id.AccountId) (UpdateAccountResponse, error) {
-	acc, err := uc.accountRepo.FindById(ctx, accountId)
+	acc, err := uc.accFinder.FindById(ctx, accountId)
 	if err != nil {
 		slog.Info("could not find account by id", "err", err)
 		return UpdateAccountResponse{}, err
@@ -50,7 +53,7 @@ func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountReques
 
 	acc.UpdateEmail(em)
 
-	if err := uc.accountRepo.Update(ctx, acc); err != nil {
+	if err := uc.accUpdater.Update(ctx, acc); err != nil {
 		return UpdateAccountResponse{}, err
 	}
 
@@ -60,21 +63,22 @@ func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountReques
 
 }
 
-func NewAccountRegistration(tx tx.Transactor, accountRepo Repository,
+func NewAccountRegistration(tx tx.Transactor, accSaver Saver,
 	uniquePlayerSvc *player.UniquePlayerService,
 	tokenIssuer auth.TokenIssuer,
 ) *Registration {
 	return &Registration{
-		accountRepo:     accountRepo,
+		accSaver:        accSaver,
 		uniquePlayerSvc: uniquePlayerSvc,
 		tx:              tx,
 		tokenIssuer:     tokenIssuer,
 	}
 }
 
-func NewUsernamePasswordLogin(accountRepo Repository, playerRepo player.Repository, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
+func NewUsernamePasswordLogin(accFinder Finder, accUpdater Updater, playerRepo player.Repository, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
 	return &UsernamePasswordLogin{
-		accountRepo: accountRepo,
+		accFinder:   accFinder,
+		accUpdater:  accUpdater,
 		playerRepo:  playerRepo,
 		tokenIssuer: tokenIssuer,
 	}
@@ -95,7 +99,7 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 
 	err = a.tx.WithTransaction(ctx, func(ctx context.Context) error {
 		// 1) Save account (source of truth is DB unique constraint)
-		savedAcc, err := a.accountRepo.Save(ctx, newAcc)
+		savedAcc, err := a.accSaver.Save(ctx, newAcc)
 		if err != nil {
 			if errors.Is(err, postgres.ErrUniqueValueViolation) {
 				slog.Info("account unique constraint violation", "username", newAcc.Username)
@@ -189,7 +193,7 @@ func (a *Registration) buildPlayer(accountName string) (*player.Player, error) {
 func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePasswordLoginRequest) (string, error) {
 	username, pass := request.Username, request.Password
 
-	acc, err := l.accountRepo.FindByUsername(ctx, username)
+	acc, err := l.accFinder.FindByUsername(ctx, username)
 	if err != nil {
 		slog.Info("failed to find account", "username", username, "error", err)
 		return "", ErrDatabaseError // or wrap/map
@@ -206,7 +210,7 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 	}
 
 	// login is successful, update the last access. This should never give an error
-	if err := l.accountRepo.UpdateLastAccess(ctx, acc.Id); err != nil {
+	if err := l.accUpdater.UpdateLastAccess(ctx, acc.Id); err != nil {
 		slog.Error("failed to update last access", "error", err)
 		return "", ErrDatabaseError
 	}
