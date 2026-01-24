@@ -3,10 +3,10 @@ package player
 import (
 	"beldur/internal/id"
 	"beldur/pkg/db/postgres"
+	"beldur/pkg/logger"
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 )
 
 // UniquePlayerService is a domain service that makes sure to persist an user in its repository
@@ -35,12 +35,12 @@ func (s *UniquePlayerService) CreateUniquePlayer(ctx context.Context, pl *Player
 		}
 
 		if !errors.Is(err, postgres.ErrUniqueValueViolation) {
-			slog.Error("failed to save new player", "error", err)
+			logger.Debug("failed to save new player", "error", err)
 			return nil, err
 		}
 
 		newName := fmt.Sprintf("%s_%d", originalName, attempt+1)
-		slog.Info("player name already taken, retrying",
+		logger.Debug("player name already taken, retrying",
 			"playerName", pl.Name,
 			"newPlayerName", newName,
 			"attempt", attempt+1,
@@ -48,12 +48,12 @@ func (s *UniquePlayerService) CreateUniquePlayer(ctx context.Context, pl *Player
 		)
 
 		if err := pl.ChangeName(newName); err != nil {
-			slog.Error("failed to change player name", "error", err)
+			logger.Debug("failed to change player name", "error", err)
 			return nil, err
 		}
 	}
 
-	slog.Error("failed to save new player after retries",
+	logger.Debug("failed to save new player after retries",
 		"originalName", originalName,
 		"finalName", pl.Name,
 		"maxTrials", maxTrials,

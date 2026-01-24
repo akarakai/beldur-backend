@@ -4,7 +4,6 @@ import (
 	"beldur/internal/auth"
 	"beldur/internal/id"
 	"beldur/pkg/httperr"
-	"log/slog"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,7 +30,6 @@ func (h *HttpHandler) HandleCreateCampaign(c *fiber.Ctx) error {
 
 	p, ok := auth.PrincipalFromCtx(c)
 	if !ok {
-		slog.Error("principal not found in context even if authentication is successful")
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
@@ -63,7 +61,6 @@ func (h *HttpHandler) HandleJoinCampaign(c *fiber.Ctx) error {
 
 	p, ok := auth.PrincipalFromCtx(c)
 	if !ok {
-		slog.Error("principal not found in context even if authentication is successful")
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 

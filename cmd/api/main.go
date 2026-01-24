@@ -7,6 +7,7 @@ import (
 	"beldur/internal/campaign"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
+	"beldur/pkg/logger"
 	"context"
 	"os"
 	"time"
@@ -18,6 +19,9 @@ import (
 )
 
 func main() {
+	logger.Init()
+	defer logger.Sync()
+
 	if err := godotenv.Load(".env.dev"); err != nil {
 		panic(err)
 	}

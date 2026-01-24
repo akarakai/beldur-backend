@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"time"
 
@@ -20,7 +19,6 @@ func NewPgxPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	defer cancel()
 
 	if err := pool.Ping(pingCtx); err != nil {
-		slog.Error("shutting down pgx pool because timeout is expired")
 		pool.Close()
 		return nil, err
 	}
