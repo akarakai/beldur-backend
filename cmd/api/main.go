@@ -46,6 +46,7 @@ func main() {
 	app.Post("/auth/login", accountHandler.Login)
 	app.Post("/campaign", authMiddleware, campaignHandler.HandleCreateCampaign)
 	app.Get("/campaign", campaignHandler.HandleGetCampaign)
+	app.Patch("/account", authMiddleware, accountHandler.UpdateAccount)
 	app.Post("/campaign/:campaignId", authMiddleware, campaignHandler.HandleJoinCampaign)
 
 	if err := app.Listen(":3000"); err != nil {

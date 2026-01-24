@@ -3,6 +3,7 @@ package campaign
 import (
 	"beldur/internal/id"
 	"beldur/pkg/db/tx"
+	"beldur/pkg/dto"
 	"context"
 	"log/slog"
 	"strings"
@@ -107,11 +108,11 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 
 // SearchCampaign gives back a list of campaigns, filtering is now not present
 // Only the full list of the campaign in the database is given
-func (uc *UseCase) SearchCampaign(ctx context.Context) ([]SimpleCampaignInfoResponse, error) {
+func (uc *UseCase) SearchCampaign(ctx context.Context) (dto.ListResponse[SimpleCampaignInfoResponse], error) {
 	campaigns, err := uc.campaignRepo.FindAll(ctx)
 	if err != nil {
 		log.Error("failed to find campaigns from the database", "error", err)
-		return []SimpleCampaignInfoResponse{}, err
+		return dto.ListResponse[SimpleCampaignInfoResponse]{}, err
 	}
 
 	cRespList := make([]SimpleCampaignInfoResponse, len(campaigns))
@@ -128,5 +129,7 @@ func (uc *UseCase) SearchCampaign(ctx context.Context) ([]SimpleCampaignInfoResp
 		}
 		cRespList[i] = cResp
 	}
-	return cRespList, nil
+	return dto.ListResponse[SimpleCampaignInfoResponse]{
+		Data: cRespList,
+	}, nil
 }

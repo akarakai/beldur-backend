@@ -2,6 +2,7 @@ package account
 
 import (
 	"beldur/internal/auth"
+	"beldur/internal/id"
 	"beldur/internal/player"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
@@ -23,6 +24,40 @@ type UsernamePasswordLogin struct {
 	accountRepo Repository
 	playerRepo  player.Repository
 	tokenIssuer auth.TokenIssuer
+}
+
+type Management struct {
+	accountRepo Repository
+}
+
+func NewAccountManagement(accountRepo Repository) *Management {
+	return &Management{
+		accountRepo: accountRepo,
+	}
+}
+
+// UpdateAccount updates the account of accountId
+func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountRequest, accountId id.AccountId) (UpdateAccountResponse, error) {
+	acc, err := uc.accountRepo.FindById(ctx, accountId)
+	if err != nil {
+		slog.Info("could not find account by id", "err", err)
+		return UpdateAccountResponse{}, err
+	}
+	em, err := NewEmail(req.Email)
+	if err != nil {
+		return UpdateAccountResponse{}, err
+	}
+
+	acc.UpdateEmail(em)
+
+	if err := uc.accountRepo.Update(ctx, acc); err != nil {
+		return UpdateAccountResponse{}, err
+	}
+
+	return UpdateAccountResponse{
+		Email: acc.Email.String(),
+	}, nil
+
 }
 
 func NewAccountRegistration(tx tx.Transactor, accountRepo Repository,
@@ -96,10 +131,12 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		return CreateAccountResponse{}, "", err
 	}
 
+	email := newAcc.Email.String()
+
 	return CreateAccountResponse{
 		AccountID:   int(newAcc.Id),
 		AccountName: newAcc.Username,
-		Email:       newAcc.Email.String(),
+		Email:       &email,
 		CreatedAt:   newAcc.CreatedAt,
 		Player: PlayerCreateResponse{
 			PlayerID: int(newPl.Id),
@@ -115,7 +152,7 @@ func (a *Registration) buildNewAccountFromRequest(req CreateAccountRequest) (*Ac
 		return nil, err
 	}
 
-	if req.Email == "" {
+	if req.Email == nil {
 		newAcc, err := New(req.Username, hashedPass)
 		if err != nil {
 			slog.Error("failed to create new account", "err", err)
@@ -124,7 +161,12 @@ func (a *Registration) buildNewAccountFromRequest(req CreateAccountRequest) (*Ac
 		return newAcc, nil
 	}
 
-	newAcc, err := New(req.Username, hashedPass, WithEmail(req.Email))
+	em, err := NewEmail(*req.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	newAcc, err := New(req.Username, hashedPass, WithEmail(em))
 	if err != nil {
 		slog.Error("failed to create new account", "err", err)
 		return nil, err

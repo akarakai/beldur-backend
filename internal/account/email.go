@@ -28,8 +28,3 @@ func NewEmail(email string) (Email, error) {
 func (e Email) String() string {
 	return e.value
 }
-
-// I think it cannot be null because I validate in new....
-func (e Email) IsNull() bool {
-	return e.value == ""
-}

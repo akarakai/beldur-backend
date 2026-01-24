@@ -14,8 +14,25 @@ type PostgresRepository struct {
 	q postgres.QuerierProvider
 }
 
+// Update updates for now only email
+func (a *PostgresRepository) Update(ctx context.Context, account *Account) error {
+	const query = `
+		UPDATE accounts
+		SET email = $1
+		WHERE account_id = $2
+	`
+	cmd, err := a.q(ctx).Exec(ctx, query, account.Email.String(), account.Id)
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return postgres.ErrNoRowUpdated
+	}
+	return nil
+}
+
 func (a *PostgresRepository) UpdateLastAccess(ctx context.Context, accountId id2.AccountId) error {
-	query := `
+	const query = `
 		UPDATE accounts
 		SET last_access = NOW()
 		WHERE account_id = $1;
@@ -38,21 +55,12 @@ func NewPostgresRepository(q postgres.QuerierProvider) *PostgresRepository {
 }
 
 func (a *PostgresRepository) Save(ctx context.Context, acc *Account) (*Account, error) {
-	query := `
+	const query = `
 		INSERT INTO accounts (username, password, email)
 		VALUES ($1, $2, $3)
 		RETURNING account_id, username, password, email, created_at
 	`
-
-	// Map domain Email (value object) -> SQL NULL
-	var email any
-	if acc.Email.IsNull() {
-		email = nil
-	} else {
-		email = acc.Email.String()
-	}
-
-	row := a.q(ctx).QueryRow(ctx, query, acc.Username, acc.Password, email)
+	row := a.q(ctx).QueryRow(ctx, query, acc.Username, acc.Password, acc.Email)
 
 	saved, err := a.scanAccount(row)
 	if err != nil {
@@ -75,7 +83,7 @@ func (a *PostgresRepository) Save(ctx context.Context, acc *Account) (*Account, 
 }
 
 func (a *PostgresRepository) FindByUsername(ctx context.Context, username string) (*Account, error) {
-	query := `
+	const query = `
 		SELECT account_id, username, password, email, created_at
 		FROM accounts
 		WHERE username = $1
@@ -87,7 +95,7 @@ func (a *PostgresRepository) FindByUsername(ctx context.Context, username string
 }
 
 func (a *PostgresRepository) FindById(ctx context.Context, accountId id2.AccountId) (*Account, error) {
-	query := `
+	const query = `
 		SELECT account_id, username, password, email, created_at
 		FROM accounts
 		WHERE account_id = $1
@@ -129,7 +137,7 @@ func (a *PostgresRepository) scanAccount(row pgx.Row) (*Account, error) {
 		Id:        id2.AccountId(id),
 		Username:  username,
 		Password:  password,
-		Email:     accEmail,
+		Email:     &accEmail,
 		CreatedAt: createdAt,
 	}, nil
 }

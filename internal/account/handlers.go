@@ -1,6 +1,7 @@
 package account
 
 import (
+	"beldur/internal/auth"
 	"beldur/pkg/httperr"
 	"errors"
 	"time"
@@ -11,13 +12,15 @@ import (
 type HttpHandler struct {
 	registrationUC *Registration
 	loginUC        *UsernamePasswordLogin
+	manageUC       *Management
 	errManager     *httperr.Manager
 }
 
-func NewHttpHandler(registrationUC *Registration, loginUC *UsernamePasswordLogin) *HttpHandler {
+func NewHttpHandler(registrationUC *Registration, loginUC *UsernamePasswordLogin, accountManagement *Management) *HttpHandler {
 	return &HttpHandler{
 		registrationUC: registrationUC,
 		loginUC:        loginUC,
+		manageUC:       accountManagement,
 		errManager:     NewAccountApiErrorManager(),
 	}
 }
@@ -63,6 +66,23 @@ func (h *HttpHandler) Login(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func (h *HttpHandler) UpdateAccount(c *fiber.Ctx) error {
+	var req UpdateAccountRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	p, ok := auth.PrincipalFromCtx(c)
+	if !ok {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+	resp, err := h.manageUC.UpdateAccount(c.Context(), req, p.AccountID)
+	if err != nil {
+		status, body := h.errManager.Map(err)
+		return c.Status(status).JSON(body)
+	}
+	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
 func (h *HttpHandler) attachTokenToCookie(c *fiber.Ctx, token string) error {
