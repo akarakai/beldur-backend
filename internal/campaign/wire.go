@@ -12,6 +12,6 @@ type Deps struct {
 
 func NewHandlerFromDeps(deps Deps) *HttpHandler {
 	campaignRepo := NewPostgresRepository(deps.QProvider)
-	newCampaignUC := NewUseCase(campaignRepo, deps.Transactor)
+	newCampaignUC := NewUseCase(campaignRepo, campaignRepo, campaignRepo, deps.Transactor)
 	return NewHttpHandler(newCampaignUC)
 }

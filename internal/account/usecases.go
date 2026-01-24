@@ -21,10 +21,10 @@ type Registration struct {
 
 // UsernamePasswordLogin is a login USE CASE
 type UsernamePasswordLogin struct {
-	accFinder   Finder
-	accUpdater  Updater
-	playerRepo  player.Repository
-	tokenIssuer auth.TokenIssuer
+	accFinder    Finder
+	accUpdater   Updater
+	playerFinder player.Finder
+	tokenIssuer  auth.TokenIssuer
 }
 
 type Management struct {
@@ -75,12 +75,12 @@ func NewAccountRegistration(tx tx.Transactor, accSaver Saver,
 	}
 }
 
-func NewUsernamePasswordLogin(accFinder Finder, accUpdater Updater, playerRepo player.Repository, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
+func NewUsernamePasswordLogin(accFinder Finder, accUpdater Updater, playerFinder player.Finder, tokenIssuer auth.TokenIssuer) *UsernamePasswordLogin {
 	return &UsernamePasswordLogin{
-		accFinder:   accFinder,
-		accUpdater:  accUpdater,
-		playerRepo:  playerRepo,
-		tokenIssuer: tokenIssuer,
+		accFinder:    accFinder,
+		accUpdater:   accUpdater,
+		playerFinder: playerFinder,
+		tokenIssuer:  tokenIssuer,
 	}
 }
 
@@ -203,7 +203,7 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 		return "", ErrInvalidCredentials
 	}
 
-	p, err := l.playerRepo.FindByAccountId(ctx, acc.Id)
+	p, err := l.playerFinder.FindByAccountId(ctx, acc.Id)
 	if err != nil {
 		slog.Info("failed to find player", "account", acc.Id, "error", err)
 		return "", errors.Join(ErrDatabaseError, errors.New("failed to fetch the player even if account is found"))

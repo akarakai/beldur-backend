@@ -13,7 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -38,7 +38,7 @@ func main() {
 
 	app := fiber.New()
 	app.Use(healthcheck.New())
-	app.Use(logger.New())
+	app.Use(fiberlogger.New())
 
 	authMiddleware := auth.HttpMiddleware(jwtService)
 
