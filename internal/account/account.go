@@ -2,6 +2,7 @@ package account
 
 import (
 	"beldur/internal/id"
+	"fmt"
 	"time"
 )
 
@@ -12,13 +13,9 @@ const (
 
 type Option func(*Account) error
 
-func WithEmail(emailValue string) Option {
+func WithEmail(e Email) Option {
 	return func(a *Account) error {
-		e, err := NewEmail(emailValue)
-		if err != nil {
-			return err
-		}
-		a.Email = e
+		a.Email = &e
 		return nil
 	}
 }
@@ -27,7 +24,7 @@ type Account struct {
 	Id        id.AccountId
 	Username  string
 	Password  string // hashed password
-	Email     Email
+	Email     *Email
 	CreatedAt time.Time
 }
 
@@ -48,12 +45,21 @@ func New(username string, hashedPassword string, opt ...Option) (*Account, error
 	return acc, nil
 }
 
-func (a *Account) ChangeUsername(newUsername string) error {
+func (a *Account) UpdateEmail(email Email) {
+	a.Email = &email
+}
+
+// UpdateUsername I think should not be possible. For now the api doesnt offer this
+func (a *Account) UpdateUsername(newUsername string) error {
 	if err := validateUsername(newUsername); err != nil {
 		return err
 	}
 	a.Username = newUsername
 	return nil
+}
+
+func (a *Account) String() string {
+	return fmt.Sprintf("Account{Username: %s}", a.Username)
 }
 
 // TODO better validation

@@ -54,5 +54,11 @@ func NewAccountApiErrorManager() *httperr.Manager {
 		Message: "Invalid username or password",
 	})
 
+	mng.Add(ErrInvalidEmailFormat, httperr.Mapped{
+		Status:  http.StatusBadRequest,
+		Code:    "bad_request",
+		Message: ErrInvalidEmailFormat.Error(),
+	})
+
 	return mng
 }
