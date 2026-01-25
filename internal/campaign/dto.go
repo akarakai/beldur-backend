@@ -3,8 +3,8 @@ package campaign
 import "time"
 
 type CreationRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description" validate:"required"`
 }
 
 type CreationResponse struct {
@@ -18,7 +18,7 @@ type CreationResponse struct {
 }
 
 type JoinRequest struct {
-	Code string `json:"access_code"`
+	Code string `json:"access_code" validate:"required"`
 }
 
 type JoinResponse struct {

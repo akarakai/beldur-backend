@@ -1,9 +1,9 @@
 package account
 
 import (
-	"beldur/internal/auth"
 	"beldur/internal/id"
 	"beldur/internal/player"
+	"beldur/pkg/auth"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
 	"beldur/pkg/logger"

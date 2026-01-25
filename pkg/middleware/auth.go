@@ -1,12 +1,14 @@
-package auth
+package middleware
 
 import (
+	"beldur/pkg/auth"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 const principalKey = "principal"
 
-func HttpMiddleware(verifier TokenVerifier) func(*fiber.Ctx) error {
+func Auth(verifier auth.TokenVerifier) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Cookies("jwt")
 		if token == "" {
@@ -18,7 +20,7 @@ func HttpMiddleware(verifier TokenVerifier) func(*fiber.Ctx) error {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		c.Locals(principalKey, Principal{
+		c.Locals(principalKey, auth.Principal{
 			AccountID: verified.Subject,
 			PlayerID:  verified.PlayerId,
 		})
@@ -27,8 +29,8 @@ func HttpMiddleware(verifier TokenVerifier) func(*fiber.Ctx) error {
 	}
 }
 
-func PrincipalFromCtx(c *fiber.Ctx) (Principal, bool) {
+func PrincipalFromCtx(c *fiber.Ctx) (auth.Principal, bool) {
 	v := c.Locals(principalKey)
-	p, ok := v.(Principal)
+	p, ok := v.(auth.Principal)
 	return p, ok
 }

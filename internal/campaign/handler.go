@@ -1,9 +1,9 @@
 package campaign
 
 import (
-	"beldur/internal/auth"
 	"beldur/internal/id"
 	"beldur/pkg/httperr"
+	"beldur/pkg/middleware"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,13 +22,9 @@ func NewHttpHandler(campaignUC *UseCase) *HttpHandler {
 }
 
 func (h *HttpHandler) HandleCreateCampaign(c *fiber.Ctx) error {
-	var req CreationRequest
-	if err := c.BodyParser(&req); err != nil {
-		status, body := h.errManager.Map(err)
-		return c.Status(status).JSON(body)
-	}
+	req := c.Locals("body").(CreationRequest)
 
-	p, ok := auth.PrincipalFromCtx(c)
+	p, ok := middleware.PrincipalFromCtx(c)
 	if !ok {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
@@ -43,7 +39,7 @@ func (h *HttpHandler) HandleCreateCampaign(c *fiber.Ctx) error {
 }
 
 func (h *HttpHandler) HandleJoinCampaign(c *fiber.Ctx) error {
-	var req JoinRequest
+	req := c.Locals("body").(JoinRequest)
 
 	campaignInstr := c.Params("campaignId")
 	if campaignInstr == "" {
@@ -54,12 +50,7 @@ func (h *HttpHandler) HandleJoinCampaign(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	if err := c.BodyParser(&req); err != nil {
-		status, body := h.errManager.Map(err)
-		return c.Status(status).JSON(body)
-	}
-
-	p, ok := auth.PrincipalFromCtx(c)
+	p, ok := middleware.PrincipalFromCtx(c)
 	if !ok {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}

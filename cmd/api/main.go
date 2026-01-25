@@ -2,12 +2,12 @@ package main
 
 import (
 	"beldur/internal/account"
-	"beldur/internal/auth"
-	"beldur/internal/auth/jwt"
 	"beldur/internal/campaign"
+	"beldur/pkg/auth/jwt"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
 	"beldur/pkg/logger"
+	"beldur/pkg/middleware"
 	"context"
 	"os"
 	"time"
@@ -28,7 +28,6 @@ func main() {
 
 	jwtService := buildJwtService()
 	transactor, qProvider := buildTransactorQuerierProvider()
-
 	accountHandler := account.NewHandlerFromDeps(account.Deps{
 		Transactor: transactor,
 		QProvider:  qProvider,
@@ -44,14 +43,14 @@ func main() {
 	app.Use(healthcheck.New())
 	app.Use(fiberlogger.New())
 
-	authMiddleware := auth.HttpMiddleware(jwtService)
+	authMiddleware := middleware.Auth(jwtService)
 
-	app.Post("/auth/signup", accountHandler.Register)
-	app.Post("/auth/login", accountHandler.Login)
-	app.Post("/campaign", authMiddleware, campaignHandler.HandleCreateCampaign)
+	app.Post("/auth/signup", middleware.Validation[account.CreateAccountRequest](), accountHandler.Register)
+	app.Post("/auth/login", middleware.Validation[account.UsernamePasswordLoginRequest](), accountHandler.Login)
+	app.Post("/campaign", authMiddleware, middleware.Validation[campaign.CreationRequest](), campaignHandler.HandleCreateCampaign)
 	app.Get("/campaign", campaignHandler.HandleGetCampaign)
 	app.Patch("/account", authMiddleware, accountHandler.UpdateAccount)
-	app.Post("/campaign/:campaignId", authMiddleware, campaignHandler.HandleJoinCampaign)
+	app.Post("/campaign/:campaignId", authMiddleware, middleware.Validation[campaign.JoinRequest](), campaignHandler.HandleJoinCampaign)
 
 	if err := app.Listen(":3000"); err != nil {
 		panic(err)

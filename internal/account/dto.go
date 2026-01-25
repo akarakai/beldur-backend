@@ -5,8 +5,8 @@ import "time"
 // #### ACCOUNT CREATION
 
 type CreateAccountRequest struct {
-	Username string  `json:"username"`
-	Password string  `json:"password"`
+	Username string  `json:"username" validate:"required"`
+	Password string  `json:"password" validate:"required"`
 	Email    *string `json:"email,omitempty"`
 }
 
@@ -26,8 +26,8 @@ type PlayerCreateResponse struct {
 // #### Login
 
 type UsernamePasswordLoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 // UpdateAccountRequest 's fields will be nullable when more than one.
