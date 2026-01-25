@@ -7,8 +7,11 @@ import (
 )
 
 const (
-	UsernameMaxCharacters = 10
-	PasswordMaxCharacters = 10
+	UsernameMaxCharacters = 20
+	PasswordMaxCharacters = 4
+
+	UsernameMinCharacters = 5
+	PasswordMinCharacters = 6
 )
 
 type Option func(*Account) error
@@ -64,7 +67,7 @@ func (a *Account) String() string {
 
 // TODO better validation
 func validateUsername(value string) error {
-	if len(value) > UsernameMaxCharacters {
+	if len(value) > UsernameMaxCharacters || len(value) < UsernameMinCharacters {
 		return ErrInvalidUsername
 	}
 	return nil
@@ -72,7 +75,7 @@ func validateUsername(value string) error {
 
 // TODO better validation
 func validateRawPassword(value string) error {
-	if len(value) > PasswordMaxCharacters {
+	if len(value) > PasswordMaxCharacters || len(value) < PasswordMinCharacters {
 		return ErrInvalidPassword
 	}
 	return nil

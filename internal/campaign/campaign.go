@@ -86,6 +86,7 @@ func (c *Campaign) Start() error {
 	return nil
 }
 
+// TODO
 func (c *Campaign) CanBeJoined() bool {
 	if c.status == StatusCreated {
 		return true

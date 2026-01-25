@@ -11,10 +11,14 @@ import (
 	"errors"
 )
 
+type UniquePlayerCreator interface {
+	CreateUniquePlayer(ctx context.Context, pl *player.Player, accId id.AccountId) (*player.Player, error)
+}
+
 // Registration is an USE CASE where an account is created along with a player of that account
 type Registration struct {
 	accSaver        Saver
-	uniquePlayerSvc *player.UniquePlayerService
+	uniquePlayerSvc UniquePlayerCreator
 	tx              tx.Transactor
 	tokenIssuer     auth.TokenIssuer
 }
@@ -64,7 +68,7 @@ func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountReques
 }
 
 func NewAccountRegistration(tx tx.Transactor, accSaver Saver,
-	uniquePlayerSvc *player.UniquePlayerService,
+	uniquePlayerSvc UniquePlayerCreator,
 	tokenIssuer auth.TokenIssuer,
 ) *Registration {
 	return &Registration{
@@ -135,12 +139,16 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		return CreateAccountResponse{}, "", err
 	}
 
-	email := newAcc.Email.String()
+	var emailVal *string
+	if newAcc.Email != nil {
+		emailStr := newAcc.Email.String()
+		emailVal = &emailStr
+	}
 
 	return CreateAccountResponse{
 		AccountID:   int(newAcc.Id),
 		AccountName: newAcc.Username,
-		Email:       &email,
+		Email:       emailVal,
 		CreatedAt:   newAcc.CreatedAt,
 		Player: PlayerCreateResponse{
 			PlayerID: int(newPl.Id),
