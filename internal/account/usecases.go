@@ -95,15 +95,13 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		return CreateAccountResponse{}, "", err
 	}
 
-	// Build player before tx (no DB reads)
 	newPl, err := a.buildPlayer(newAcc.Username)
 	if err != nil {
 		return CreateAccountResponse{}, "", err
 	}
 
-	err = a.tx.WithTransaction(ctx, func(ctx context.Context) error {
-		// 1) Save account (source of truth is DB unique constraint)
-		savedAcc, err := a.accSaver.Save(ctx, newAcc)
+	err = a.tx.WithTransaction(ctx, func(txCtx context.Context) error {
+		savedAcc, err := a.accSaver.Save(txCtx, newAcc)
 		if err != nil {
 			if errors.Is(err, postgres.ErrUniqueValueViolation) {
 				logger.Debug("account unique constraint violation", "username", newAcc.Username)
@@ -114,8 +112,7 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		}
 		newAcc = savedAcc
 
-		// 2) Save player (service handles retries / unique violation)
-		savedPl, err := a.uniquePlayerSvc.CreateUniquePlayer(ctx, newPl, newAcc.Id)
+		savedPl, err := a.uniquePlayerSvc.CreateUniquePlayer(txCtx, newPl, newAcc.Id)
 		if err != nil {
 			return err
 		}
@@ -129,7 +126,6 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		return CreateAccountResponse{}, "", err
 	}
 
-	// generate token
 	token, err := a.tokenIssuer.Issue(ctx, auth.Claims{
 		Subject:  newAcc.Id,
 		PlayerID: newPl.Id,

@@ -148,6 +148,10 @@ func (c *Campaign) AddPlayer(playerId id.PlayerId) error {
 		return ErrCampaignCancelled
 	}
 
+	if c.status == StatusStarted {
+		return ErrCampaignAlreadyStarted
+	}
+
 	if _, exists := c.players[playerId]; exists {
 		return ErrPlayerAlreadyInCampaign
 	}
