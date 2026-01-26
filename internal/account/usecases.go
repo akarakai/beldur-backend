@@ -191,7 +191,7 @@ func (a *Registration) buildPlayer(accountName string) (*player.Player, error) {
 	return pl, nil
 }
 
-// Login returns nil and a new JWT authentication token if login is successful.
+// Login returns nil and a new JwtService authentication token if login is successful.
 // Doesn't run in a transaction because readonly
 // On login update the last access.
 func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePasswordLoginRequest) (string, error) {
