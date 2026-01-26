@@ -1,20 +1,24 @@
 package account
 
 import (
-	"beldur/internal/auth"
 	"beldur/internal/id"
 	"beldur/internal/player"
+	"beldur/pkg/auth"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
+	"beldur/pkg/logger"
 	"context"
 	"errors"
-	"log/slog"
 )
+
+type UniquePlayerCreator interface {
+	CreateUniquePlayer(ctx context.Context, pl *player.Player, accId id.AccountId) (*player.Player, error)
+}
 
 // Registration is an USE CASE where an account is created along with a player of that account
 type Registration struct {
 	accSaver        Saver
-	uniquePlayerSvc *player.UniquePlayerService
+	uniquePlayerSvc UniquePlayerCreator
 	tx              tx.Transactor
 	tokenIssuer     auth.TokenIssuer
 }
@@ -43,7 +47,7 @@ func NewAccountManagement(accFinder Finder, accUpdater Updater) *Management {
 func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountRequest, accountId id.AccountId) (UpdateAccountResponse, error) {
 	acc, err := uc.accFinder.FindById(ctx, accountId)
 	if err != nil {
-		slog.Info("could not find account by id", "err", err)
+		logger.Debug("could not find account by id", "err", err)
 		return UpdateAccountResponse{}, err
 	}
 	em, err := NewEmail(req.Email)
@@ -64,7 +68,7 @@ func (uc *Management) UpdateAccount(ctx context.Context, req UpdateAccountReques
 }
 
 func NewAccountRegistration(tx tx.Transactor, accSaver Saver,
-	uniquePlayerSvc *player.UniquePlayerService,
+	uniquePlayerSvc UniquePlayerCreator,
 	tokenIssuer auth.TokenIssuer,
 ) *Registration {
 	return &Registration{
@@ -91,27 +95,24 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 		return CreateAccountResponse{}, "", err
 	}
 
-	// Build player before tx (no DB reads)
 	newPl, err := a.buildPlayer(newAcc.Username)
 	if err != nil {
 		return CreateAccountResponse{}, "", err
 	}
 
-	err = a.tx.WithTransaction(ctx, func(ctx context.Context) error {
-		// 1) Save account (source of truth is DB unique constraint)
-		savedAcc, err := a.accSaver.Save(ctx, newAcc)
+	err = a.tx.WithTransaction(ctx, func(txCtx context.Context) error {
+		savedAcc, err := a.accSaver.Save(txCtx, newAcc)
 		if err != nil {
 			if errors.Is(err, postgres.ErrUniqueValueViolation) {
-				slog.Info("account unique constraint violation", "username", newAcc.Username)
+				logger.Debug("account unique constraint violation", "username", newAcc.Username)
 				return ErrAccountNameAlreadyTaken
 			}
-			slog.Error("failed to save new account", "username", newAcc.Username, "error", err)
+			logger.Debug("failed to save new account", "err", err)
 			return errors.Join(ErrDatabaseError, err)
 		}
 		newAcc = savedAcc
 
-		// 2) Save player (service handles retries / unique violation)
-		savedPl, err := a.uniquePlayerSvc.CreateUniquePlayer(ctx, newPl, newAcc.Id)
+		savedPl, err := a.uniquePlayerSvc.CreateUniquePlayer(txCtx, newPl, newAcc.Id)
 		if err != nil {
 			return err
 		}
@@ -121,26 +122,29 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 	})
 
 	if err != nil {
-		slog.Error("failed to register account", "username", request.Username, "error", err)
+		logger.Debug("failed to register account", "err", err)
 		return CreateAccountResponse{}, "", err
 	}
 
-	// generate token
 	token, err := a.tokenIssuer.Issue(ctx, auth.Claims{
 		Subject:  newAcc.Id,
 		PlayerID: newPl.Id,
 	})
 	if err != nil {
-		slog.Error("failed to issue token", "username", newAcc.Username, "error", err)
+		logger.Debug("failed to issue token", "err", err)
 		return CreateAccountResponse{}, "", err
 	}
 
-	email := newAcc.Email.String()
+	var emailVal *string
+	if newAcc.Email != nil {
+		emailStr := newAcc.Email.String()
+		emailVal = &emailStr
+	}
 
 	return CreateAccountResponse{
 		AccountID:   int(newAcc.Id),
 		AccountName: newAcc.Username,
-		Email:       &email,
+		Email:       emailVal,
 		CreatedAt:   newAcc.CreatedAt,
 		Player: PlayerCreateResponse{
 			PlayerID: int(newPl.Id),
@@ -152,14 +156,14 @@ func (a *Registration) RegisterAccount(ctx context.Context, request CreateAccoun
 func (a *Registration) buildNewAccountFromRequest(req CreateAccountRequest) (*Account, error) {
 	hashedPass, err := HashPassword(req.Password)
 	if err != nil {
-		slog.Error("failed to hash password", "err", err)
+		logger.Debug("failed to hash password", "err", err)
 		return nil, err
 	}
 
 	if req.Email == nil {
 		newAcc, err := New(req.Username, hashedPass)
 		if err != nil {
-			slog.Error("failed to create new account", "err", err)
+			logger.Debug("failed to create new account", "err", err)
 			return nil, err
 		}
 		return newAcc, nil
@@ -172,7 +176,7 @@ func (a *Registration) buildNewAccountFromRequest(req CreateAccountRequest) (*Ac
 
 	newAcc, err := New(req.Username, hashedPass, WithEmail(em))
 	if err != nil {
-		slog.Error("failed to create new account", "err", err)
+		logger.Debug("failed to create new account", "err", err)
 		return nil, err
 	}
 	return newAcc, nil
@@ -181,7 +185,7 @@ func (a *Registration) buildNewAccountFromRequest(req CreateAccountRequest) (*Ac
 func (a *Registration) buildPlayer(accountName string) (*player.Player, error) {
 	pl, err := player.New(accountName)
 	if err != nil {
-		slog.Error("failed to create new player", "err", err)
+		logger.Debug("failed to create new player", "err", err)
 		return nil, err
 	}
 	return pl, nil
@@ -195,7 +199,7 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 
 	acc, err := l.accFinder.FindByUsername(ctx, username)
 	if err != nil {
-		slog.Info("failed to find account", "username", username, "error", err)
+		logger.Debug("failed to find account", "username", username, "error", err)
 		return "", ErrDatabaseError // or wrap/map
 	}
 
@@ -205,13 +209,13 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 
 	p, err := l.playerFinder.FindByAccountId(ctx, acc.Id)
 	if err != nil {
-		slog.Info("failed to find player", "account", acc.Id, "error", err)
+		logger.Debug("failed to find player", "account", acc.Id, "error", err)
 		return "", errors.Join(ErrDatabaseError, errors.New("failed to fetch the player even if account is found"))
 	}
 
 	// login is successful, update the last access. This should never give an error
 	if err := l.accUpdater.UpdateLastAccess(ctx, acc.Id); err != nil {
-		slog.Error("failed to update last access", "error", err)
+		logger.Debug("failed to update last access", "error", err)
 		return "", ErrDatabaseError
 	}
 
@@ -220,7 +224,7 @@ func (l *UsernamePasswordLogin) Login(ctx context.Context, request UsernamePassw
 		PlayerID: p.Id,
 	})
 	if err != nil {
-		slog.Error("failed to issue token", "error", err)
+		logger.Error("failed to issue token", err)
 		return "", err
 	}
 	return token, nil

@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"beldur/pkg/auth"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"beldur/internal/auth"
 	"beldur/internal/id"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"

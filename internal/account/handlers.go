@@ -1,8 +1,8 @@
 package account
 
 import (
-	"beldur/internal/auth"
 	"beldur/pkg/httperr"
+	"beldur/pkg/middleware"
 	"errors"
 	"time"
 
@@ -27,11 +27,7 @@ func NewHttpHandler(registrationUC *Registration, loginUC *UsernamePasswordLogin
 
 // Register creates a new account + new player as a side effect
 func (h *HttpHandler) Register(c *fiber.Ctx) error {
-	var req CreateAccountRequest
-	if err := c.BodyParser(&req); err != nil {
-		status, body := h.errManager.Map(err)
-		return c.Status(status).JSON(body)
-	}
+	req := c.Locals("body").(CreateAccountRequest)
 
 	response, token, err := h.registrationUC.RegisterAccount(c.Context(), req)
 	if err != nil {
@@ -48,11 +44,7 @@ func (h *HttpHandler) Register(c *fiber.Ctx) error {
 
 // Login logins the user and gives a jwtauth (httperr only) cookie
 func (h *HttpHandler) Login(c *fiber.Ctx) error {
-	var req UsernamePasswordLoginRequest
-	if err := c.BodyParser(&req); err != nil {
-		status, body := h.errManager.Map(err)
-		return c.Status(status).JSON(body)
-	}
+	req := c.Locals("body").(UsernamePasswordLoginRequest)
 
 	jwt, err := h.loginUC.Login(c.Context(), req)
 	if err != nil {
@@ -69,14 +61,13 @@ func (h *HttpHandler) Login(c *fiber.Ctx) error {
 }
 
 func (h *HttpHandler) UpdateAccount(c *fiber.Ctx) error {
-	var req UpdateAccountRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.SendStatus(fiber.StatusBadRequest)
-	}
-	p, ok := auth.PrincipalFromCtx(c)
+	req := c.Locals("body").(UpdateAccountRequest)
+
+	p, ok := middleware.PrincipalFromCtx(c)
 	if !ok {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
+
 	resp, err := h.manageUC.UpdateAccount(c.Context(), req, p.AccountID)
 	if err != nil {
 		status, body := h.errManager.Map(err)

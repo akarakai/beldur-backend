@@ -4,11 +4,9 @@ import (
 	"beldur/internal/id"
 	"beldur/pkg/db/tx"
 	"beldur/pkg/dto"
+	"beldur/pkg/logger"
 	"context"
-	"log/slog"
 	"strings"
-
-	"github.com/gofiber/fiber/v2/log"
 )
 
 type UseCase struct {
@@ -35,7 +33,7 @@ func (uc *UseCase) CreateNewCampaign(ctx context.Context, req CreationRequest, m
 
 	c, err := New(req.Name, req.Description, masterId)
 	if err != nil {
-		slog.Info("failed to create new campaign", "error", err)
+		logger.Debug("failed to create new campaign", "error", err)
 		return CreationResponse{}, err // I think its safe to return this domain error to the user
 	}
 
@@ -43,7 +41,7 @@ func (uc *UseCase) CreateNewCampaign(ctx context.Context, req CreationRequest, m
 
 	err = uc.tx.WithTransaction(ctx, func(ctx context.Context) error {
 		if err := uc.cSaver.Save(ctx, c, code); err != nil {
-			slog.Error("failed to save new campaign", "error", err)
+			logger.Debug("failed to save new campaign", "error", err)
 			return err
 		}
 		resp = CreationResponse{
@@ -58,7 +56,7 @@ func (uc *UseCase) CreateNewCampaign(ctx context.Context, req CreationRequest, m
 		return nil
 	})
 	if err != nil {
-		slog.Error("failed to save new campaign", "error", err)
+		logger.Debug("failed to save new campaign", "error", err)
 		return CreationResponse{}, err
 	}
 	return resp, nil
@@ -76,13 +74,13 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 	err := uc.tx.WithTransaction(ctx, func(ctx context.Context) error {
 		c, err := uc.cFinder.FindById(ctx, campaignId)
 		if err != nil {
-			slog.Info("no campaign found", "campaign_id", campaignId)
+			logger.Debug("no campaign found", "campaign_id", campaignId)
 			return ErrCampaignNotFound
 		}
 		// check if authcode is the same
 		codeDb, err := uc.cFinder.FindAuthCode(ctx, c.id)
 		if err != nil {
-			slog.Error("failed to find auth code", "campaign_id", c.id, "error", err)
+			logger.Debug("failed to find auth code", "campaign_id", c.id, "error", err)
 			return err
 		}
 		if authCode != codeDb {
@@ -92,7 +90,7 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 			return err
 		}
 		if err := uc.cUpdater.Update(ctx, c); err != nil {
-			slog.Error("failed to update campaign", "error", err)
+			logger.Debug("failed to update campaign", "error", err)
 			return err
 		}
 		resp = JoinResponse{
@@ -115,7 +113,7 @@ func (uc *UseCase) JoinCampaign(ctx context.Context, req JoinRequest, campaignId
 func (uc *UseCase) SearchCampaign(ctx context.Context) (dto.ListResponse[SimpleCampaignInfoResponse], error) {
 	campaigns, err := uc.cFinder.FindAll(ctx)
 	if err != nil {
-		log.Error("failed to find campaigns from the database", "error", err)
+		logger.Debug("failed to find campaigns from the database", "error", err)
 		return dto.ListResponse[SimpleCampaignInfoResponse]{}, err
 	}
 

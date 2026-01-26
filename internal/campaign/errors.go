@@ -25,7 +25,7 @@ func NewCampaignApiErrorManager() *httperr.Manager {
 	mng := httperr.NewManager()
 
 	mng.Add(ErrWrongAccessCode, httperr.Mapped{
-		Status:  http.StatusBadRequest, // TODO MAYBE UNAUTHORIZED????
+		Status:  http.StatusUnauthorized,
 		Code:    "wrong_access_code",
 		Message: ErrWrongAccessCode.Error(),
 	})

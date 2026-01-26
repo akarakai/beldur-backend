@@ -86,6 +86,7 @@ func (c *Campaign) Start() error {
 	return nil
 }
 
+// TODO
 func (c *Campaign) CanBeJoined() bool {
 	if c.status == StatusCreated {
 		return true
@@ -145,6 +146,10 @@ func (c *Campaign) AddPlayer(playerId id.PlayerId) error {
 
 	if c.status == StatusCancelled {
 		return ErrCampaignCancelled
+	}
+
+	if c.status == StatusStarted {
+		return ErrCampaignAlreadyStarted
 	}
 
 	if _, exists := c.players[playerId]; exists {
