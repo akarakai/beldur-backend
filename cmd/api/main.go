@@ -1,58 +1,37 @@
 package main
 
 import (
-	"beldur/internal/account"
-	"beldur/internal/campaign"
+	"beldur/internal/app"
 	"beldur/pkg/auth/jwt"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
 	"beldur/pkg/logger"
-	"beldur/pkg/middleware"
 	"context"
 	"os"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/healthcheck"
-	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	logger.Init()
 	defer logger.Sync()
-
 	if err := godotenv.Load(".env.dev"); err != nil {
 		panic(err)
 	}
 
+	port := os.Getenv("PORT")
+
 	jwtService := buildJwtService()
-	transactor, qProvider := buildTransactorQuerierProvider()
-	accountHandler := account.NewHandlerFromDeps(account.Deps{
+	transactor, querier := buildTransactorQuerierProvider()
+	deps := app.Deps{
+		JwtService: jwtService,
 		Transactor: transactor,
-		QProvider:  qProvider,
-		Issuer:     jwtService,
-	})
+		QProvider:  querier,
+	}
 
-	campaignHandler := campaign.NewHandlerFromDeps(campaign.Deps{
-		QProvider:  qProvider,
-		Transactor: transactor,
-	})
-
-	app := fiber.New()
-	app.Use(healthcheck.New())
-	app.Use(fiberlogger.New())
-
-	authMiddleware := middleware.Auth(jwtService)
-
-	app.Post("/auth/signup", middleware.Validation[account.CreateAccountRequest](), accountHandler.Register)
-	app.Post("/auth/login", middleware.Validation[account.UsernamePasswordLoginRequest](), accountHandler.Login)
-	app.Post("/campaign", authMiddleware, middleware.Validation[campaign.CreationRequest](), campaignHandler.HandleCreateCampaign)
-	app.Get("/campaign", campaignHandler.HandleGetCampaign)
-	app.Patch("/account", authMiddleware, accountHandler.UpdateAccount)
-	app.Post("/campaign/:campaignId", authMiddleware, middleware.Validation[campaign.JoinRequest](), campaignHandler.HandleJoinCampaign)
-
-	if err := app.Listen(":3000"); err != nil {
+	fiber := app.NewDev(deps)
+	if err := fiber.Listen(port); err != nil {
 		panic(err)
 	}
 }
