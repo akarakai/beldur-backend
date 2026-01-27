@@ -86,7 +86,15 @@ func (c *Campaign) Start() error {
 	return nil
 }
 
-// TODO
+func (c *Campaign) IsMaster(playerId id.PlayerId) bool {
+	return c.master == playerId
+}
+
+func (c *Campaign) HasPlayer(playerId id.PlayerId) bool {
+	_, exists := c.players[playerId]
+	return exists
+}
+
 func (c *Campaign) CanBeJoined() bool {
 	if c.status == StatusCreated {
 		return true
@@ -159,6 +167,8 @@ func (c *Campaign) AddPlayer(playerId id.PlayerId) error {
 	c.players[playerId] = struct{}{}
 	return nil
 }
+
+func (c *Campaign) Id() id.CampaignId { return c.id }
 
 func validateName(name string) error {
 	if len(name) > MaxNameCharacters {

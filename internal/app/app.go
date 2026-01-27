@@ -3,6 +3,7 @@ package app
 import (
 	"beldur/internal/account"
 	"beldur/internal/campaign"
+	"beldur/internal/character"
 	"beldur/pkg/auth/jwt"
 	"beldur/pkg/db/postgres"
 	"beldur/pkg/db/tx"
@@ -57,6 +58,10 @@ func build(deps Deps, test bool) *FiberApp {
 		Transactor: deps.Transactor,
 	})
 
+	characterHandler := character.NewHandlerFromDeps(character.Deps{
+		QProvider: deps.QProvider,
+	})
+
 	authMiddleware := middleware.Auth(deps.JwtService)
 
 	// routes
@@ -66,6 +71,7 @@ func build(deps Deps, test bool) *FiberApp {
 	app.Get("/campaign", campaignHandler.HandleGetCampaign)
 	app.Patch("/account", authMiddleware, accountHandler.UpdateAccount)
 	app.Post("/campaign/:campaignId", authMiddleware, middleware.Validation[campaign.JoinRequest](), campaignHandler.HandleJoinCampaign)
+	app.Post("/campaign/:campaignId/npc", authMiddleware, characterHandler.HandleNpcCreation)
 
 	return &FiberApp{app: app}
 }

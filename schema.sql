@@ -43,6 +43,29 @@ CREATE TABLE campaigns (
         REFERENCES players(player_id)
 );
 
+CREATE TABLE characters (
+    character_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    description VARCHAR(500),
+    is_npc BOOLEAN,
+    base_strength INTEGER NOT NULL,
+    base_dexterity INTEGER NOT NULL,
+    base_constitution INTEGER NOT NULL,
+    base_intelligence INTEGER NOT NULL,
+    base_wisdom INTEGER NOT NULL,
+    base_charisma INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    campaign_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_characters_campaign
+        FOREIGN KEY (campaign_id)
+        REFERENCES campaigns(campaign_id),
+
+    CONSTRAINT fk_characters_player
+        FOREIGN KEY (player_id)
+        REFERENCES players(player_id)
+);
+
 CREATE TABLE campaigns_players (
     campaign_id  INTEGER NOT NULL,
     player_id    INTEGER NOT NULL,
